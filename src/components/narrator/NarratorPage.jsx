@@ -4,7 +4,7 @@ import ModelLoader from '../shared/ModelLoader'
 import VoiceRecorder from '../shared/VoiceRecorder'
 import AudioPlayer from '../shared/AudioPlayer'
 import GenerateButton from '../shared/GenerateButton'
-import { useTTS } from '../../hooks/useTTS'
+import { useChunkedTTS } from '../../hooks/useChunkedTTS'
 import { useModelStatus } from '../../hooks/useModelStatus'
 import { useAppStore } from '../../store/app-store'
 import { SAMPLE_RATE, SAMPLE_STORIES } from '../../lib/constants'
@@ -354,7 +354,7 @@ function characterColor(idx) {
 
 export default function NarratorPage() {
   const { isReady } = useModelStatus()
-  const { encodeSpeaker, generate, isSpeakerEncoded } = useTTS()
+  const { encodeSpeaker, generateChunked, isSpeakerEncoded } = useChunkedTTS()
 
   const narrator = useAppStore((s) => s.narrator)
   const setNarrator = useAppStore((s) => s.setNarrator)
@@ -502,7 +502,8 @@ export default function NarratorPage() {
           }
         }
 
-        const result = await generate(seg.text, spkId, 0.5)
+        const result = await generateChunked(seg.text, spkId, 0.5)
+        if (!result) break // aborted
         clips[i] = result.waveform
 
         // Update store incrementally so the UI reflects progress
@@ -544,7 +545,7 @@ export default function NarratorPage() {
     speakerIdFor,
     isSpeakerEncoded,
     encodeSpeaker,
-    generate,
+    generateChunked,
     setNarrator,
   ])
 

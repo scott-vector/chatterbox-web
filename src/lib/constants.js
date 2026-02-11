@@ -4,6 +4,10 @@ export const DEFAULT_EXAGGERATION = 0.5
 export const MIN_EXAGGERATION = 0
 export const MAX_EXAGGERATION = 1.5
 
+export const MAX_CHUNK_CHARS = 200
+export const SENTENCE_SILENCE_SEC = 0.15
+export const PARAGRAPH_SILENCE_SEC = 0.4
+
 export const ECHO_TEMPLATES = [
   { id: 'birthday', label: 'Birthday', emoji: '🎂', gradient: 'from-pink-600 to-purple-600' },
   { id: 'thankyou', label: 'Thank You', emoji: '💜', gradient: 'from-violet-600 to-indigo-600' },

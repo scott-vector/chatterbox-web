@@ -5,8 +5,9 @@ import VoiceRecorder from '../shared/VoiceRecorder'
 import AudioPlayer from '../shared/AudioPlayer'
 import ExaggerationSlider from '../shared/ExaggerationSlider'
 import GenerateButton from '../shared/GenerateButton'
+import ChunkProgressBar from '../shared/ChunkProgressBar'
 
-import { useTTS } from '../../hooks/useTTS'
+import { useChunkedTTS } from '../../hooks/useChunkedTTS'
 import { useModelStatus } from '../../hooks/useModelStatus'
 import { useAppStore } from '../../store/app-store'
 import { SAMPLE_RATE } from '../../lib/constants'
@@ -15,7 +16,7 @@ const SPEAKER_ID = 'playground-voice'
 
 export default function PlaygroundPage() {
   const { isReady } = useModelStatus()
-  const { loadModel, encodeSpeaker, generate, isSpeakerEncoded } = useTTS()
+  const { loadModel, encodeSpeaker, generateChunked, isSpeakerEncoded, chunkProgress } = useChunkedTTS()
   const playground = useAppStore((s) => s.playground)
   const setPlayground = useAppStore((s) => s.setPlayground)
 
@@ -43,19 +44,23 @@ export default function PlaygroundPage() {
         setEncodingVoice(false)
       }
 
-      const result = await generate(playground.text, SPEAKER_ID, playground.exaggeration)
+      const result = await generateChunked(playground.text, SPEAKER_ID, playground.exaggeration)
 
-      setPlayground({
-        generatedAudio: result.waveform,
-        inferenceTime: result.inferenceTime,
-        generating: false,
-      })
+      if (result) {
+        setPlayground({
+          generatedAudio: result.waveform,
+          inferenceTime: result.inferenceTime,
+          generating: false,
+        })
+      } else {
+        setPlayground({ generating: false })
+      }
     } catch (err) {
       console.error('Generation failed:', err)
       setPlayground({ generating: false })
       setEncodingVoice(false)
     }
-  }, [playground.voiceAudio, playground.text, playground.exaggeration, isSpeakerEncoded, encodeSpeaker, generate, setPlayground])
+  }, [playground.voiceAudio, playground.text, playground.exaggeration, isSpeakerEncoded, encodeSpeaker, generateChunked, setPlayground])
 
   // --- Computed metrics ---
   const audioDuration =
@@ -70,7 +75,9 @@ export default function PlaygroundPage() {
   const generateLabel = encodingVoice
     ? 'Encoding Voice...'
     : playground.generating
-      ? 'Generating...'
+      ? chunkProgress.total > 1
+        ? `Generating chunk ${chunkProgress.current} of ${chunkProgress.total}...`
+        : 'Generating...'
       : 'Generate Speech'
 
   return (
@@ -121,6 +128,12 @@ export default function PlaygroundPage() {
                   generating={playground.generating || encodingVoice}
                   label={generateLabel}
                 />
+                {playground.generating && (
+                  <ChunkProgressBar
+                    current={chunkProgress.current}
+                    total={chunkProgress.total}
+                  />
+                )}
               </div>
 
               {/* ---- Right Column: Voice & Output ---- */}

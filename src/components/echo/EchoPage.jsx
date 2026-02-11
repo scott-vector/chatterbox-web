@@ -6,8 +6,9 @@ import VoiceRecorder from '../shared/VoiceRecorder'
 import AudioPlayer from '../shared/AudioPlayer'
 import ExaggerationSlider from '../shared/ExaggerationSlider'
 import GenerateButton from '../shared/GenerateButton'
+import ChunkProgressBar from '../shared/ChunkProgressBar'
 
-import { useTTS } from '../../hooks/useTTS'
+import { useChunkedTTS } from '../../hooks/useChunkedTTS'
 import { useModelStatus } from '../../hooks/useModelStatus'
 import { useAppStore } from '../../store/app-store'
 import { SAMPLE_RATE, ECHO_TEMPLATES } from '../../lib/constants'
@@ -36,7 +37,7 @@ const STEP_LABELS = ['Record Voice', 'Compose Message', 'Preview & Share']
 
 export default function EchoPage() {
   const { isReady } = useModelStatus()
-  const { encodeSpeaker, generate, isSpeakerEncoded } = useTTS()
+  const { encodeSpeaker, generateChunked, isSpeakerEncoded, chunkProgress } = useChunkedTTS()
   const echo = useAppStore((s) => s.echo)
   const setEcho = useAppStore((s) => s.setEcho)
   const directionRef = useRef(1)
@@ -75,14 +76,18 @@ export default function EchoPage() {
     if (!text.trim() || generating) return
     setEcho({ generating: true, generatedAudio: null })
     try {
-      const { waveform } = await generate(text, SPEAKER_ID, exaggeration)
-      setEcho({ generatedAudio: waveform, generating: false })
-      goToStep(2)
+      const result = await generateChunked(text, SPEAKER_ID, exaggeration)
+      if (result) {
+        setEcho({ generatedAudio: result.waveform, generating: false })
+        goToStep(2)
+      } else {
+        setEcho({ generating: false })
+      }
     } catch (err) {
       console.error('Echo generation failed:', err)
       setEcho({ generating: false })
     }
-  }, [text, generating, exaggeration, generate, setEcho, goToStep])
+  }, [text, generating, exaggeration, generateChunked, setEcho, goToStep])
 
   const handleDownload = useCallback(() => {
     if (!generatedAudio) return
@@ -279,13 +284,23 @@ export default function EchoPage() {
                       <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z" />
                     </svg>
                   </button>
-                  <div className="flex-1">
+                  <div className="flex-1 space-y-2">
                     <GenerateButton
                       onClick={handleGenerate}
                       disabled={!text.trim() || !isReady}
                       generating={generating}
-                      label="Generate Voice Card"
+                      label={
+                        generating && chunkProgress.total > 1
+                          ? `Generating chunk ${chunkProgress.current} of ${chunkProgress.total}...`
+                          : 'Generate Voice Card'
+                      }
                     />
+                    {generating && (
+                      <ChunkProgressBar
+                        current={chunkProgress.current}
+                        total={chunkProgress.total}
+                      />
+                    )}
                   </div>
                 </div>
               </motion.div>

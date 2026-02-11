@@ -2,6 +2,8 @@
 
 A showcase application for [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) by Resemble AI, running **100% in the browser** via [Transformers.js](https://github.com/huggingface/transformers.js) v4. No server, no API keys — the entire model runs client-side using WebGPU or WASM.
 
+**[Live Demo](https://transformersjs-chatterbox-demo.vercel.app/)**
+
 <!--
 To add screenshots, place images in a `screenshots/` directory:
   screenshots/home.png
