@@ -12,7 +12,7 @@ import TranscriptAudioModal from '../shared/TranscriptAudioModal'
 import { useChunkedTTS } from '../../hooks/useChunkedTTS'
 import { useModelStatus } from '../../hooks/useModelStatus'
 import { useAppStore } from '../../store/app-store'
-import { SAMPLE_RATE } from '../../lib/constants'
+import { DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC, SAMPLE_RATE } from '../../lib/constants'
 import { downloadBlob, encodeWAV } from '../../lib/audio-utils'
 import { useReferenceVoices } from '../../hooks/useReferenceVoices'
 import { useTTSQueue } from '../../hooks/useTTSQueue'
@@ -46,6 +46,7 @@ export default function PlaygroundPage() {
     saveVoice,
     removeVoice,
     loadVoiceAudio,
+    updateVoiceTranscriptSyncDelay,
   } = useReferenceVoices()
 
   const ensureSpeaker = useCallback(async (speakerId) => {
@@ -66,6 +67,13 @@ export default function PlaygroundPage() {
     if (playground.voiceId) return `temp-${playground.voiceId}`
     return null
   }, [selectedVoiceId, playground.voiceId])
+
+  const selectedVoice = useMemo(
+    () => voices.find((voice) => voice.id === selectedVoiceId) ?? null,
+    [selectedVoiceId, voices],
+  )
+
+  const activeTranscriptSyncDelaySec = selectedVoice?.transcriptSyncDelaySec ?? DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC
 
   const handleVoiceReady = useCallback((audioData) => {
     setSelectedVoiceId(null)
@@ -128,8 +136,12 @@ export default function PlaygroundPage() {
 
   const handleStartQueue = useCallback(async () => {
     if (!activeSpeakerId || !playground.voiceAudio) return
-    await queue.start(activeSpeakerId, playground.exaggeration)
-  }, [activeSpeakerId, playground.exaggeration, playground.voiceAudio, queue])
+    await queue.start(activeSpeakerId, playground.exaggeration, {
+      voiceSettings: {
+        transcriptSyncDelaySec: activeTranscriptSyncDelaySec,
+      },
+    })
+  }, [activeSpeakerId, activeTranscriptSyncDelaySec, playground.exaggeration, playground.voiceAudio, queue])
 
   const audioDuration =
     playground.generatedAudio ? playground.generatedAudio.length / SAMPLE_RATE : null
@@ -407,6 +419,22 @@ export default function PlaygroundPage() {
                               </button>
                             </div>
                           </div>
+                          <label className="mt-2 flex items-center gap-2 text-[11px] text-zinc-400">
+                            <span className="shrink-0">Transcript sync delay (sec)</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={2}
+                              step={0.01}
+                              value={voice.transcriptSyncDelaySec ?? DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC}
+                              onChange={(e) => {
+                                const value = Number.parseFloat(e.target.value)
+                                if (!Number.isFinite(value)) return
+                                updateVoiceTranscriptSyncDelay(voice.id, Math.max(0, value))
+                              }}
+                              className="w-20 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                            />
+                          </label>
                         </div>
                       )
                     })}
@@ -482,6 +510,7 @@ export default function PlaygroundPage() {
         isOpen={!!activeModalJob}
         job={activeModalJob}
         initialTime={modalInitialTime}
+        transcriptSyncDelaySec={activeModalJob?.voiceSettings?.transcriptSyncDelaySec ?? DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC}
         onClose={() => setActiveModalJob(null)}
       />
 
