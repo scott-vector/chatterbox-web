@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import { useTTS } from './useTTS'
 import { splitTextIntoChunks } from '../lib/text-chunker'
 import { concatFloat32Arrays, createSilence } from '../lib/audio-utils'
-import { SENTENCE_SILENCE_SEC, PARAGRAPH_SILENCE_SEC } from '../lib/constants'
+import { SENTENCE_SILENCE_SEC, PARAGRAPH_SILENCE_SEC, SAMPLE_RATE } from '../lib/constants'
 
 /**
  * Wraps useTTS with automatic text chunking for long-form generation.
@@ -52,6 +52,8 @@ export function useChunkedTTS() {
 
       const waveforms = []
       let totalInferenceTime = 0
+      let offsetSeconds = 0
+      const mergedWordTimestamps = []
 
       try {
         for (let i = 0; i < chunks.length; i++) {
@@ -66,6 +68,19 @@ export function useChunkedTTS() {
           waveforms.push(result.waveform)
           totalInferenceTime += result.inferenceTime
 
+          if (Array.isArray(result.wordTimestamps)) {
+            result.wordTimestamps.forEach((token) => {
+              if (typeof token?.start !== 'number' || typeof token?.end !== 'number') return
+              mergedWordTimestamps.push({
+                ...token,
+                start: token.start + offsetSeconds,
+                end: token.end + offsetSeconds,
+              })
+            })
+          }
+
+          offsetSeconds += result.waveform.length / SAMPLE_RATE
+
           // Add silence gap before the next chunk (not after the last)
           if (i < chunks.length - 1) {
             const nextChunk = chunks[i + 1]
@@ -74,6 +89,7 @@ export function useChunkedTTS() {
                 ? PARAGRAPH_SILENCE_SEC
                 : SENTENCE_SILENCE_SEC
             waveforms.push(createSilence(silenceDuration))
+            offsetSeconds += silenceDuration
           }
         }
 
@@ -82,6 +98,7 @@ export function useChunkedTTS() {
         const concatenated = concatFloat32Arrays(waveforms)
         return {
           waveform: concatenated,
+          wordTimestamps: mergedWordTimestamps.length > 0 ? mergedWordTimestamps : null,
           inferenceTime: totalInferenceTime,
         }
       } finally {

@@ -1,7 +1,13 @@
 import { useEffect } from 'react'
 import { useAudioPlayer } from '../../hooks/useAudioPlayer'
 
-export default function AudioPlayer({ audioData, sampleRate, autoPlay = false }) {
+export default function AudioPlayer({
+  audioData,
+  sampleRate,
+  autoPlay = false,
+  onTimeChange,
+  onDurationChange,
+}) {
   const { playing, currentTime, duration, loadAudio, togglePlay, seek } = useAudioPlayer()
 
   useEffect(() => {
@@ -9,7 +15,15 @@ export default function AudioPlayer({ audioData, sampleRate, autoPlay = false })
       loadAudio(audioData, sampleRate)
       if (autoPlay) togglePlay()
     }
-  }, [audioData])
+  }, [audioData, autoPlay, loadAudio, sampleRate, togglePlay])
+
+  useEffect(() => {
+    onTimeChange?.(currentTime)
+  }, [currentTime, onTimeChange])
+
+  useEffect(() => {
+    onDurationChange?.(duration)
+  }, [duration, onDurationChange])
 
   if (!audioData) return null
 

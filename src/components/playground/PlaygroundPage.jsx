@@ -6,6 +6,7 @@ import AudioPlayer from '../shared/AudioPlayer'
 import ExaggerationSlider from '../shared/ExaggerationSlider'
 import GenerateButton from '../shared/GenerateButton'
 import ChunkProgressBar from '../shared/ChunkProgressBar'
+import WordLevelTranscript from '../shared/WordLevelTranscript'
 
 import { useChunkedTTS } from '../../hooks/useChunkedTTS'
 import { useModelStatus } from '../../hooks/useModelStatus'
@@ -31,6 +32,9 @@ export default function PlaygroundPage() {
   const [voiceName, setVoiceName] = useState('')
   const [selectedVoiceId, setSelectedVoiceId] = useState(null)
   const [queueInput, setQueueInput] = useState('')
+  const [previewTime, setPreviewTime] = useState(0)
+  const [previewDuration, setPreviewDuration] = useState(0)
+  const [jobPlayback, setJobPlayback] = useState({})
 
   const {
     voices,
@@ -84,7 +88,12 @@ export default function PlaygroundPage() {
   const handleGenerate = useCallback(async () => {
     if (!playground.voiceAudio || !playground.text.trim() || !activeSpeakerId) return
 
-    setPlayground({ generating: true, generatedAudio: null, inferenceTime: null })
+    setPlayground({
+      generating: true,
+      generatedAudio: null,
+      generatedWordTimestamps: null,
+      inferenceTime: null,
+    })
 
     try {
       await ensureSpeaker(activeSpeakerId)
@@ -93,6 +102,7 @@ export default function PlaygroundPage() {
       if (result) {
         setPlayground({
           generatedAudio: result.waveform,
+          generatedWordTimestamps: result.wordTimestamps ?? null,
           inferenceTime: result.inferenceTime,
           generating: false,
         })
@@ -260,7 +270,39 @@ export default function PlaygroundPage() {
                         {job.error && <p className="text-red-400 mt-1">{job.error}</p>}
                         {job.output?.url && (
                           <div className="mt-2 space-y-2">
-                            <audio controls preload="none" src={job.output.url} className="w-full h-8" />
+                            <audio
+                              controls
+                              preload="none"
+                              src={job.output.url}
+                              className="w-full h-8"
+                              onTimeUpdate={(e) => {
+                                const el = e.currentTarget
+                                setJobPlayback((prev) => ({
+                                  ...prev,
+                                  [job.id]: {
+                                    ...prev[job.id],
+                                    currentTime: el.currentTime,
+                                    duration: Number.isFinite(el.duration) ? el.duration : prev[job.id]?.duration || 0,
+                                  },
+                                }))
+                              }}
+                              onLoadedMetadata={(e) => {
+                                const el = e.currentTarget
+                                setJobPlayback((prev) => ({
+                                  ...prev,
+                                  [job.id]: {
+                                    ...prev[job.id],
+                                    duration: Number.isFinite(el.duration) ? el.duration : 0,
+                                  },
+                                }))
+                              }}
+                            />
+                            <WordLevelTranscript
+                              text={job.text}
+                              wordTimestamps={job.output.wordTimestamps}
+                              currentTime={jobPlayback[job.id]?.currentTime ?? 0}
+                              duration={jobPlayback[job.id]?.duration ?? 0}
+                            />
                             <a href={job.output.url} download={`${job.title.replace(/\.[^/.]+$/, '')}.wav`} className="text-violet-400 hover:text-violet-300 inline-block">
                               Download WAV
                             </a>
@@ -341,6 +383,14 @@ export default function PlaygroundPage() {
                       audioData={playground.generatedAudio}
                       sampleRate={SAMPLE_RATE}
                       autoPlay
+                      onTimeChange={setPreviewTime}
+                      onDurationChange={setPreviewDuration}
+                    />
+                    <WordLevelTranscript
+                      text={playground.text}
+                      wordTimestamps={playground.generatedWordTimestamps}
+                      currentTime={previewTime}
+                      duration={previewDuration}
                     />
                     <button
                       type="button"
