@@ -82,12 +82,28 @@ async function generate(data) {
   // generate() takes input_ids, attention_mask, speaker embeddings, and exaggeration
   // It returns a waveform Tensor directly
   // max_new_tokens=256 matches the reference implementation (default is ~20 which produces <0.2s)
-  const waveform = await model.generate({
-    ...inputs,
-    ...speakerEmbeddings,
-    exaggeration,
-    max_new_tokens: 256,
-  })
+  let result
+  try {
+    result = await model.generate({
+      ...inputs,
+      ...speakerEmbeddings,
+      exaggeration,
+      max_new_tokens: 256,
+      return_timestamps: 'word',
+    })
+  } catch {
+    result = await model.generate({
+      ...inputs,
+      ...speakerEmbeddings,
+      exaggeration,
+      max_new_tokens: 256,
+    })
+  }
+
+  const waveform = result?.waveform || result
+  const wordTimestamps = Array.isArray(result?.word_timestamps)
+    ? result.word_timestamps
+    : null
 
   const waveformData = waveform.data
   const buffer = waveformData.buffer.slice(
@@ -96,7 +112,7 @@ async function generate(data) {
   )
 
   self.postMessage(
-    { type: 'generate:complete', data: { waveform: buffer } },
+    { type: 'generate:complete', data: { waveform: buffer, wordTimestamps } },
     [buffer],
   )
 }

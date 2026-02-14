@@ -76,6 +76,7 @@ export function useTTS() {
     const elapsed = performance.now() - start
     return {
       waveform: new Float32Array(result.waveform),
+      wordTimestamps: result.wordTimestamps ?? null,
       inferenceTime: elapsed,
     }
   }, [])

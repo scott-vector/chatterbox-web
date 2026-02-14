@@ -117,7 +117,16 @@ export function useTTSQueue({ generateChunked, ensureSpeaker, abortGeneration })
 
           const updated = jobsRef.current.map((j) => (
             j.id === currentJob.id
-              ? { ...j, status: 'done', output: { url, waveform: result.waveform }, error: null }
+              ? {
+                ...j,
+                status: 'done',
+                output: {
+                  url,
+                  waveform: result.waveform,
+                  wordTimestamps: result.wordTimestamps ?? null,
+                },
+                error: null,
+              }
               : j
           ))
           jobsRef.current = updated

@@ -27,6 +27,7 @@ export const useAppStore = create((set, get) => ({
     exaggeration: 0.5,
     voiceAudio: null,
     generatedAudio: null,
+    generatedWordTimestamps: null,
     generating: false,
     inferenceTime: null,
   },
