@@ -10,8 +10,54 @@ function formatTime(seconds) {
 
 export default function TranscriptAudioModal({ isOpen, job, initialTime = 0, onClose }) {
   const audioRef = useRef(null)
+  const rafRef = useRef(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+
+  useEffect(() => {
+    if (!isOpen || !audioRef.current) return undefined
+
+    const audioEl = audioRef.current
+
+    const stopSync = () => {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+    }
+
+    const syncCurrentTime = () => {
+      setCurrentTime(audioEl.currentTime)
+
+      if (!audioEl.paused && !audioEl.ended) {
+        rafRef.current = requestAnimationFrame(syncCurrentTime)
+      } else {
+        rafRef.current = null
+      }
+    }
+
+    const startSync = () => {
+      stopSync()
+      rafRef.current = requestAnimationFrame(syncCurrentTime)
+    }
+
+    audioEl.addEventListener('play', startSync)
+    audioEl.addEventListener('seeking', syncCurrentTime)
+    audioEl.addEventListener('seeked', syncCurrentTime)
+    audioEl.addEventListener('pause', stopSync)
+    audioEl.addEventListener('ended', stopSync)
+
+    if (!audioEl.paused) startSync()
+
+    return () => {
+      audioEl.removeEventListener('play', startSync)
+      audioEl.removeEventListener('seeking', syncCurrentTime)
+      audioEl.removeEventListener('seeked', syncCurrentTime)
+      audioEl.removeEventListener('pause', stopSync)
+      audioEl.removeEventListener('ended', stopSync)
+      stopSync()
+    }
+  }, [isOpen, job?.id])
 
   useEffect(() => {
     if (!isOpen) return undefined

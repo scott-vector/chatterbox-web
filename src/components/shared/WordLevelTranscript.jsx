@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 
+const MIN_TOKEN_DURATION_SEC = 0.08
+
 function tokenizeWithFallback(text, duration) {
   const words = text
     .split(/\s+/)
@@ -27,8 +29,27 @@ export default function WordLevelTranscript({
   onWordClick,
 }) {
   const tokens = useMemo(() => {
+    const normalizeTokens = (rawTokens) => {
+      const sorted = rawTokens
+        .filter((token) => Number.isFinite(token.start))
+        .sort((a, b) => a.start - b.start)
+
+      return sorted.map((token, index) => {
+        const nextStart = sorted[index + 1]?.start
+        const fallbackEnd =
+          Number.isFinite(nextStart) && nextStart > token.start
+            ? nextStart
+            : token.start + MIN_TOKEN_DURATION_SEC
+        const end = Number.isFinite(token.end) && token.end > token.start ? token.end : fallbackEnd
+        return {
+          ...token,
+          end: Math.max(end, token.start + MIN_TOKEN_DURATION_SEC),
+        }
+      })
+    }
+
     if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
-      return wordTimestamps
+      const parsedTokens = wordTimestamps
         .map((token) => {
           const word = token.word ?? token.text ?? token.token
           if (!word) return null
@@ -39,18 +60,41 @@ export default function WordLevelTranscript({
           }
         })
         .filter(Boolean)
+
+      return normalizeTokens(parsedTokens)
     }
 
-    return tokenizeWithFallback(text, duration)
+    return normalizeTokens(tokenizeWithFallback(text, duration))
   }, [duration, text, wordTimestamps])
 
   const activeTokenRef = useRef(null)
   const previousActiveIndex = useRef(-1)
 
-  const activeIndex = useMemo(
-    () => tokens.findIndex((token) => currentTime >= token.start && currentTime < token.end),
-    [currentTime, tokens],
-  )
+  const activeIndex = useMemo(() => {
+    if (tokens.length === 0) return -1
+
+    let low = 0
+    let high = tokens.length - 1
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2)
+      const token = tokens[mid]
+
+      if (currentTime < token.start) {
+        high = mid - 1
+        continue
+      }
+
+      if (currentTime >= token.end) {
+        low = mid + 1
+        continue
+      }
+
+      return mid
+    }
+
+    return -1
+  }, [currentTime, tokens])
 
   useEffect(() => {
     if (!activeTokenRef.current || previousActiveIndex.current === activeIndex) return
