@@ -9,6 +9,15 @@ function formatTime(seconds) {
   return `${mins}:${String(secs).padStart(2, '0')}`
 }
 
+function getValidWordTimestamps(wordTimestamps) {
+  if (!Array.isArray(wordTimestamps)) return []
+  return wordTimestamps.filter((token) => (
+    Number.isFinite(token?.start)
+      && Number.isFinite(token?.end)
+      && token.end > token.start
+  ))
+}
+
 export default function TranscriptAudioModal({
   isOpen,
   job,
@@ -102,9 +111,30 @@ export default function TranscriptAudioModal({
     return Math.min(100, (currentTime / duration) * 100)
   }, [currentTime, duration])
 
+  const alignedTranscriptTime = useMemo(() => {
+    const tokens = getValidWordTimestamps(job?.output?.wordTimestamps)
+
+    if (tokens.length < 2 || !Number.isFinite(duration) || duration <= 0) {
+      return currentTime
+    }
+
+    const first = tokens[0]
+    const last = tokens[tokens.length - 1]
+
+    const audioStart = Math.max(0, first.start)
+    const audioEnd = Math.max(audioStart + 0.001, duration)
+    const transcriptStart = first.start
+    const transcriptEnd = Math.max(transcriptStart + 0.001, last.end)
+
+    const progressRatio = (currentTime - audioStart) / (audioEnd - audioStart)
+    const clampedRatio = Math.min(1, Math.max(0, progressRatio))
+
+    return transcriptStart + (transcriptEnd - transcriptStart) * clampedRatio
+  }, [currentTime, duration, job?.output?.wordTimestamps])
+
   const transcriptTime = useMemo(
-    () => Math.max(0, currentTime - transcriptSyncDelaySec),
-    [currentTime, transcriptSyncDelaySec],
+    () => Math.max(0, alignedTranscriptTime - transcriptSyncDelaySec),
+    [alignedTranscriptTime, transcriptSyncDelaySec],
   )
 
   if (!isOpen || !job?.output?.url) return null
