@@ -20,6 +20,7 @@ export default function PlaygroundPage() {
   const {
     encodeSpeaker,
     generateChunked,
+    abortGeneration,
     isSpeakerEncoded,
     chunkProgress,
   } = useChunkedTTS()
@@ -50,7 +51,7 @@ export default function PlaygroundPage() {
     }
   }, [encodeSpeaker, isSpeakerEncoded, playground.voiceAudio])
 
-  const queue = useTTSQueue({ generateChunked, ensureSpeaker })
+  const queue = useTTSQueue({ generateChunked, ensureSpeaker, abortGeneration })
 
   const activeSpeakerId = useMemo(() => {
     if (selectedVoiceId) return `saved-${selectedVoiceId}`
