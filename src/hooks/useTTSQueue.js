@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { encodeWAV } from '../lib/audio-utils'
 
 function parseBatchText(input) {
@@ -8,10 +8,15 @@ function parseBatchText(input) {
     .filter(Boolean)
 }
 
-export function useTTSQueue({ generateChunked, ensureSpeaker }) {
+export function useTTSQueue({ generateChunked, ensureSpeaker, abortGeneration }) {
   const [jobs, setJobs] = useState([])
   const [running, setRunning] = useState(false)
   const abortRef = useRef(false)
+  const jobsRef = useRef([])
+
+  useEffect(() => {
+    jobsRef.current = jobs
+  }, [jobs])
 
   const counts = useMemo(() => {
     return jobs.reduce((acc, job) => {
@@ -77,17 +82,17 @@ export function useTTSQueue({ generateChunked, ensureSpeaker }) {
       await ensureSpeaker(speakerId)
 
       while (!abortRef.current) {
-        let currentJob = null
-        setJobs((prev) => {
-          const nextIndex = prev.findIndex((j) => j.status === 'queued')
-          if (nextIndex === -1) return prev
-          currentJob = prev[nextIndex]
-          const next = [...prev]
-          next[nextIndex] = { ...next[nextIndex], status: 'processing', error: null }
-          return next
-        })
+        const currentJob = jobsRef.current.find((j) => j.status === 'queued')
 
         if (!currentJob) break
+
+        const nextJobs = jobsRef.current.map((j) => (
+          j.id === currentJob.id
+            ? { ...j, status: 'processing', error: null }
+            : j
+        ))
+        jobsRef.current = nextJobs
+        setJobs(nextJobs)
 
         try {
           const result = await generateChunked(currentJob.text, speakerId, exaggeration)
@@ -98,17 +103,25 @@ export function useTTSQueue({ generateChunked, ensureSpeaker }) {
           const wavBlob = encodeWAV(result.waveform)
           const url = URL.createObjectURL(wavBlob)
 
-          setJobs((prev) => prev.map((j) => (
-            j.id === currentJob.id
-              ? { ...j, status: 'done', output: { url, waveform: result.waveform }, error: null }
-              : j
-          )))
+          setJobs((prev) => {
+            const updated = prev.map((j) => (
+              j.id === currentJob.id
+                ? { ...j, status: 'done', output: { url, waveform: result.waveform }, error: null }
+                : j
+            ))
+            jobsRef.current = updated
+            return updated
+          })
         } catch (error) {
-          setJobs((prev) => prev.map((j) => (
-            j.id === currentJob.id
-              ? { ...j, status: 'failed', error: error.message }
-              : j
-          )))
+          setJobs((prev) => {
+            const updated = prev.map((j) => (
+              j.id === currentJob.id
+                ? { ...j, status: 'failed', error: error.message }
+                : j
+            ))
+            jobsRef.current = updated
+            return updated
+          })
         }
       }
     } finally {
@@ -118,8 +131,9 @@ export function useTTSQueue({ generateChunked, ensureSpeaker }) {
 
   const stop = useCallback(() => {
     abortRef.current = true
+    abortGeneration?.()
     setRunning(false)
-  }, [])
+  }, [abortGeneration])
 
   return {
     jobs,
