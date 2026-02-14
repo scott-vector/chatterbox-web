@@ -75,7 +75,7 @@ export function useTTSQueue({ generateChunked, ensureSpeaker, abortGeneration })
     setJobs([])
   }, [])
 
-  const start = useCallback(async (speakerId, exaggeration) => {
+  const start = useCallback(async (speakerId, exaggeration, options = {}) => {
     if (runningRef.current) return
 
     runningRef.current = true
@@ -100,7 +100,7 @@ export function useTTSQueue({ generateChunked, ensureSpeaker, abortGeneration })
 
         const nextJobs = jobsRef.current.map((j) => (
           j.id === currentJob.id
-            ? { ...j, status: 'processing', error: null }
+            ? { ...j, status: 'processing', error: null, voiceSettings: options.voiceSettings ?? null }
             : j
         ))
         jobsRef.current = nextJobs

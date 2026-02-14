@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WordLevelTranscript from './WordLevelTranscript'
-
-const TRANSCRIPT_SYNC_DELAY_SEC = 0.18
+import { DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC } from '../../lib/constants'
 
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
@@ -10,7 +9,13 @@ function formatTime(seconds) {
   return `${mins}:${String(secs).padStart(2, '0')}`
 }
 
-export default function TranscriptAudioModal({ isOpen, job, initialTime = 0, onClose }) {
+export default function TranscriptAudioModal({
+  isOpen,
+  job,
+  initialTime = 0,
+  transcriptSyncDelaySec = DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC,
+  onClose,
+}) {
   const audioRef = useRef(null)
   const rafRef = useRef(null)
   const [currentTime, setCurrentTime] = useState(0)
@@ -98,8 +103,8 @@ export default function TranscriptAudioModal({ isOpen, job, initialTime = 0, onC
   }, [currentTime, duration])
 
   const transcriptTime = useMemo(
-    () => Math.max(0, currentTime - TRANSCRIPT_SYNC_DELAY_SEC),
-    [currentTime],
+    () => Math.max(0, currentTime - transcriptSyncDelaySec),
+    [currentTime, transcriptSyncDelaySec],
   )
 
   if (!isOpen || !job?.output?.url) return null

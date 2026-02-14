@@ -32,12 +32,20 @@ async function runTransaction(storeName, mode, handler) {
   }).finally(() => db.close())
 }
 
-export async function saveReferenceVoice({ id, name, audioData }) {
+export async function saveReferenceVoice({ id, name, audioData, transcriptSyncDelaySec }) {
   const createdAt = Date.now()
+  const voice = {
+    id,
+    name,
+    audioData,
+    createdAt,
+    ...(Number.isFinite(transcriptSyncDelaySec) ? { transcriptSyncDelaySec } : {}),
+  }
+
   await runTransaction(VOICE_STORE, 'readwrite', (store) => {
-    store.put({ id, name, audioData, createdAt })
+    store.put(voice)
   })
-  return { id, name, createdAt }
+  return { ...voice }
 }
 
 export async function listReferenceVoices() {
@@ -74,4 +82,22 @@ export async function deleteReferenceVoice(id) {
   await runTransaction(VOICE_STORE, 'readwrite', (store) => {
     store.delete(id)
   })
+}
+
+export async function updateReferenceVoice(id, updates) {
+  const existing = await getReferenceVoice(id)
+  if (!existing) return null
+
+  const nextVoice = {
+    ...existing,
+    ...updates,
+    id: existing.id,
+    createdAt: existing.createdAt,
+  }
+
+  await runTransaction(VOICE_STORE, 'readwrite', (store) => {
+    store.put(nextVoice)
+  })
+
+  return nextVoice
 }
