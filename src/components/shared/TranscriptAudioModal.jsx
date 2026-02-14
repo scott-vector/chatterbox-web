@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WordLevelTranscript from './WordLevelTranscript'
 
+const TRANSCRIPT_SYNC_DELAY_SEC = 0.18
+
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const mins = Math.floor(seconds / 60)
@@ -95,6 +97,11 @@ export default function TranscriptAudioModal({ isOpen, job, initialTime = 0, onC
     return Math.min(100, (currentTime / duration) * 100)
   }, [currentTime, duration])
 
+  const transcriptTime = useMemo(
+    () => Math.max(0, currentTime - TRANSCRIPT_SYNC_DELAY_SEC),
+    [currentTime],
+  )
+
   if (!isOpen || !job?.output?.url) return null
 
   return (
@@ -145,7 +152,7 @@ export default function TranscriptAudioModal({ isOpen, job, initialTime = 0, onC
             title="Transcript"
             text={job.text}
             wordTimestamps={job.output.wordTimestamps}
-            currentTime={currentTime}
+            currentTime={transcriptTime}
             duration={duration}
             maxHeightClass="max-h-[50vh]"
             onWordClick={(token) => {
