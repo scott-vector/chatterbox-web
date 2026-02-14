@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WordLevelTranscript from './WordLevelTranscript'
 
+const TRANSCRIPT_SYNC_DELAY_SEC = 0.18
+
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const mins = Math.floor(seconds / 60)
@@ -10,8 +12,54 @@ function formatTime(seconds) {
 
 export default function TranscriptAudioModal({ isOpen, job, initialTime = 0, onClose }) {
   const audioRef = useRef(null)
+  const rafRef = useRef(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+
+  useEffect(() => {
+    if (!isOpen || !audioRef.current) return undefined
+
+    const audioEl = audioRef.current
+
+    const stopSync = () => {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+    }
+
+    const syncCurrentTime = () => {
+      setCurrentTime(audioEl.currentTime)
+
+      if (!audioEl.paused && !audioEl.ended) {
+        rafRef.current = requestAnimationFrame(syncCurrentTime)
+      } else {
+        rafRef.current = null
+      }
+    }
+
+    const startSync = () => {
+      stopSync()
+      rafRef.current = requestAnimationFrame(syncCurrentTime)
+    }
+
+    audioEl.addEventListener('play', startSync)
+    audioEl.addEventListener('seeking', syncCurrentTime)
+    audioEl.addEventListener('seeked', syncCurrentTime)
+    audioEl.addEventListener('pause', stopSync)
+    audioEl.addEventListener('ended', stopSync)
+
+    if (!audioEl.paused) startSync()
+
+    return () => {
+      audioEl.removeEventListener('play', startSync)
+      audioEl.removeEventListener('seeking', syncCurrentTime)
+      audioEl.removeEventListener('seeked', syncCurrentTime)
+      audioEl.removeEventListener('pause', stopSync)
+      audioEl.removeEventListener('ended', stopSync)
+      stopSync()
+    }
+  }, [isOpen, job?.id])
 
   useEffect(() => {
     if (!isOpen) return undefined
@@ -48,6 +96,11 @@ export default function TranscriptAudioModal({ isOpen, job, initialTime = 0, onC
     if (!duration) return 0
     return Math.min(100, (currentTime / duration) * 100)
   }, [currentTime, duration])
+
+  const transcriptTime = useMemo(
+    () => Math.max(0, currentTime - TRANSCRIPT_SYNC_DELAY_SEC),
+    [currentTime],
+  )
 
   if (!isOpen || !job?.output?.url) return null
 
@@ -99,7 +152,7 @@ export default function TranscriptAudioModal({ isOpen, job, initialTime = 0, onC
             title="Transcript"
             text={job.text}
             wordTimestamps={job.output.wordTimestamps}
-            currentTime={currentTime}
+            currentTime={transcriptTime}
             duration={duration}
             maxHeightClass="max-h-[50vh]"
             onWordClick={(token) => {
