@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import { DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC } from '../lib/constants'
 import {
   deleteReferenceVoice,
   getReferenceVoice,
   listReferenceVoices,
   saveReferenceVoice,
+  updateReferenceVoice,
 } from '../lib/indexed-db'
 
 export function useReferenceVoices() {
@@ -29,6 +31,7 @@ export function useReferenceVoices() {
       id: crypto.randomUUID(),
       name: name.trim(),
       audioData,
+      transcriptSyncDelaySec: DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC,
     }
     await saveReferenceVoice(voice)
     await refresh()
@@ -45,12 +48,18 @@ export function useReferenceVoices() {
     return voice?.audioData || null
   }, [])
 
+  const updateVoiceTranscriptSyncDelay = useCallback(async (id, transcriptSyncDelaySec) => {
+    await updateReferenceVoice(id, { transcriptSyncDelaySec })
+    await refresh()
+  }, [refresh])
+
   return {
     voices,
     loading,
     saveVoice,
     removeVoice,
     loadVoiceAudio,
+    updateVoiceTranscriptSyncDelay,
     refresh,
   }
 }

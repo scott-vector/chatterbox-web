@@ -7,6 +7,7 @@ export const MAX_EXAGGERATION = 1.5
 export const MAX_CHUNK_CHARS = 200
 export const SENTENCE_SILENCE_SEC = 0.15
 export const PARAGRAPH_SILENCE_SEC = 0.4
+export const DEFAULT_TRANSCRIPT_SYNC_DELAY_SEC = 0.18
 
 export const ECHO_TEMPLATES = [
   { id: 'birthday', label: 'Birthday', emoji: '🎂', gradient: 'from-pink-600 to-purple-600' },
