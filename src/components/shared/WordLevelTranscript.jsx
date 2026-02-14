@@ -17,7 +17,15 @@ function tokenizeWithFallback(text, duration) {
   }))
 }
 
-export default function WordLevelTranscript({ text, wordTimestamps, currentTime, duration, title = 'Transcript', maxHeightClass = 'max-h-32' }) {
+export default function WordLevelTranscript({
+  text,
+  wordTimestamps,
+  currentTime,
+  duration,
+  title = 'Transcript',
+  maxHeightClass = 'max-h-32',
+  onWordClick,
+}) {
   const tokens = useMemo(() => {
     if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
       return wordTimestamps
@@ -37,15 +45,24 @@ export default function WordLevelTranscript({ text, wordTimestamps, currentTime,
   }, [duration, text, wordTimestamps])
 
   const activeTokenRef = useRef(null)
+  const previousActiveIndex = useRef(-1)
+
+  const activeIndex = useMemo(
+    () => tokens.findIndex((token) => currentTime >= token.start && currentTime < token.end),
+    [currentTime, tokens],
+  )
 
   useEffect(() => {
-    if (!activeTokenRef.current) return
+    if (!activeTokenRef.current || previousActiveIndex.current === activeIndex) return
+
     activeTokenRef.current.scrollIntoView({
       behavior: 'smooth',
       block: 'nearest',
       inline: 'nearest',
     })
-  }, [currentTime])
+
+    previousActiveIndex.current = activeIndex
+  }, [activeIndex])
 
   if (tokens.length === 0) return null
 
@@ -56,15 +73,17 @@ export default function WordLevelTranscript({ text, wordTimestamps, currentTime,
       </p>
       <div className={`overflow-y-auto pr-1 leading-7 ${maxHeightClass}`}>
         {tokens.map((token, index) => {
-          const isActive = currentTime >= token.start && currentTime < token.end
+          const isActive = index === activeIndex
           return (
-            <span
+            <button
+              type="button"
               key={`${token.word}-${index}-${token.start}`}
               ref={isActive ? activeTokenRef : null}
-              className={`mr-1.5 rounded px-1 py-0.5 text-sm transition-colors ${isActive ? 'bg-violet-500/30 text-violet-200' : 'text-zinc-300'}`}
+              onClick={onWordClick ? () => onWordClick(token, index) : undefined}
+              className={`mr-1.5 rounded px-1 py-0.5 text-sm transition-colors ${isActive ? 'bg-violet-500/30 text-violet-200' : 'text-zinc-300'} ${onWordClick ? 'hover:bg-zinc-700/60 cursor-pointer' : 'cursor-default'}`}
             >
               {token.word}
-            </span>
+            </button>
           )
         })}
       </div>

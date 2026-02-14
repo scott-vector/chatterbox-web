@@ -7,6 +7,7 @@ import ExaggerationSlider from '../shared/ExaggerationSlider'
 import GenerateButton from '../shared/GenerateButton'
 import ChunkProgressBar from '../shared/ChunkProgressBar'
 import WordLevelTranscript from '../shared/WordLevelTranscript'
+import TranscriptAudioModal from '../shared/TranscriptAudioModal'
 
 import { useChunkedTTS } from '../../hooks/useChunkedTTS'
 import { useModelStatus } from '../../hooks/useModelStatus'
@@ -36,6 +37,8 @@ export default function PlaygroundPage() {
   const [previewDuration, setPreviewDuration] = useState(0)
   const [jobPlayback, setJobPlayback] = useState({})
   const [activeQueueTranscriptId, setActiveQueueTranscriptId] = useState(null)
+  const [activeModalJob, setActiveModalJob] = useState(null)
+  const [modalInitialTime, setModalInitialTime] = useState(0)
 
   const {
     voices,
@@ -137,6 +140,12 @@ export default function PlaygroundPage() {
 
   const canGenerate = !!(playground.voiceAudio && playground.text.trim() && activeSpeakerId)
   const activeQueueJob = queue.jobs.find((job) => job.id === activeQueueTranscriptId) ?? null
+  const openTranscriptModal = useCallback((job, startTime = 0) => {
+    setActiveQueueTranscriptId(job.id)
+    setModalInitialTime(startTime)
+    setActiveModalJob(job)
+  }, [])
+
   const generateLabel = encodingVoice
     ? 'Encoding Voice...'
     : playground.generating
@@ -278,7 +287,11 @@ export default function PlaygroundPage() {
                                 preload="none"
                                 src={job.output.url}
                                 className="w-full h-8"
-                                onPlay={() => setActiveQueueTranscriptId(job.id)}
+                                onPlay={(e) => {
+                                  const el = e.currentTarget
+                                  el.pause()
+                                  openTranscriptModal(job, el.currentTime)
+                                }}
                                 onTimeUpdate={(e) => {
                                   const el = e.currentTarget
                                   setActiveQueueTranscriptId(job.id)
@@ -305,10 +318,10 @@ export default function PlaygroundPage() {
                               <div className="flex items-center justify-between">
                                 <button
                                   type="button"
-                                  onClick={() => setActiveQueueTranscriptId(job.id)}
+                                  onClick={() => openTranscriptModal(job, jobPlayback[job.id]?.currentTime ?? 0)}
                                   className={`text-[11px] px-2 py-1 rounded ${activeQueueTranscriptId === job.id ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
                                 >
-                                  {activeQueueTranscriptId === job.id ? 'Viewing transcript' : 'View transcript'}
+                                  {activeQueueTranscriptId === job.id ? 'Open transcript player' : 'View transcript'}
                                 </button>
                                 <a href={job.output.url} download={`${job.title.replace(/\.[^/.]+$/, '')}.wav`} className="text-violet-400 hover:text-violet-300 inline-block">
                                   Download WAV
@@ -465,6 +478,13 @@ export default function PlaygroundPage() {
           )}
         </div>
       </div>
+      <TranscriptAudioModal
+        isOpen={!!activeModalJob}
+        job={activeModalJob}
+        initialTime={modalInitialTime}
+        onClose={() => setActiveModalJob(null)}
+      />
+
     </div>
   )
 }
