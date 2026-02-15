@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import { useModelStatus } from '../../hooks/useModelStatus'
 import { useTTS } from '../../hooks/useTTS'
 
@@ -118,11 +119,7 @@ export default function ModelLoader({ compact = false }) {
           </div>
         ))}
 
-        {allDownloaded && (
-          <p className="text-xs text-zinc-600 animate-pulse">
-            Compiling ONNX sessions (this may take a minute)...
-          </p>
-        )}
+        {allDownloaded && <CompileTimer />}
       </div>
     )
   }
@@ -139,6 +136,30 @@ export default function ModelLoader({ compact = false }) {
       >
         Load Model
       </button>
+    </div>
+  )
+}
+
+function CompileTimer() {
+  const [elapsed, setElapsed] = useState(0)
+  const startRef = useRef(Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs text-zinc-500">
+        <span className="animate-pulse">Compiling ONNX sessions...</span>
+        <span className="tabular-nums">{elapsed}s</span>
+      </div>
+      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+        <div className="h-full bg-amber-500/60 rounded-full animate-[compile-slide_1.5s_ease-in-out_infinite]" style={{ width: '40%' }} />
+      </div>
     </div>
   )
 }

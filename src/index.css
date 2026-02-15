@@ -47,6 +47,12 @@ body {
   animation: progress-pulse 2s ease-in-out infinite;
 }
 
+/* Compile progress shimmer */
+@keyframes compile-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
 /* Gradient text helper */
 .text-gradient {
   background-clip: text;
