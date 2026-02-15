@@ -34,6 +34,27 @@ const DTYPE_CONFIGS = {
   },
 }
 
+async function clearStalledCacheEntries(fileHint) {
+  try {
+    const cacheNames = await caches.keys()
+    for (const name of cacheNames) {
+      const cache = await caches.open(name)
+      const requests = await cache.keys()
+      for (const req of requests) {
+        if (req.url.includes(fileHint)) {
+          console.log(`[tts.worker] Clearing cached entry: ${req.url}`)
+          await cache.delete(req)
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[tts.worker] Could not clear cache:', e.message)
+  }
+}
+
+const STALL_TIMEOUT_MS = 15_000
+const MAX_RETRIES = 3
+
 async function load(data) {
   const { device } = data
   const webgpu = await checkWebGPU()
@@ -42,13 +63,65 @@ async function load(data) {
 
   processor = await AutoProcessor.from_pretrained(MODEL_ID)
 
-  model = await ChatterboxModel.from_pretrained(MODEL_ID, {
-    device: useDevice,
-    dtype: useDtype,
-    progress_callback: (progress) => {
-      self.postMessage({ type: 'load:progress', data: progress })
-    },
-  })
+  let lastProgressTime = Date.now()
+  let lastProgressFile = ''
+  let stallTimer = null
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    lastProgressTime = Date.now()
+    lastProgressFile = ''
+
+    try {
+      model = await new Promise((resolve, reject) => {
+        let settled = false
+        const settle = (fn, val) => { if (!settled) { settled = true; clearTimeout(stallTimer); fn(val) } }
+
+        const checkStall = () => {
+          if (Date.now() - lastProgressTime > STALL_TIMEOUT_MS) {
+            settle(reject, new Error(`Download stalled on ${lastProgressFile}`))
+          } else {
+            stallTimer = setTimeout(checkStall, 5000)
+          }
+        }
+        stallTimer = setTimeout(checkStall, STALL_TIMEOUT_MS)
+
+        ChatterboxModel.from_pretrained(MODEL_ID, {
+          device: useDevice,
+          dtype: useDtype,
+          progress_callback: (progress) => {
+            if (progress.status === 'progress') {
+              lastProgressTime = Date.now()
+              lastProgressFile = progress.file || ''
+            }
+            self.postMessage({ type: 'load:progress', data: progress })
+          },
+        }).then((m) => settle(resolve, m))
+          .catch((err) => settle(reject, err))
+      })
+
+      // Success
+      break
+    } catch (err) {
+      clearTimeout(stallTimer)
+      const isStall = err.message.startsWith('Download stalled')
+      if (attempt < MAX_RETRIES && isStall) {
+        console.warn(`[tts.worker] ${err.message} — retrying (${attempt}/${MAX_RETRIES})...`)
+
+        // Clear cached partial download for the stalled file
+        if (lastProgressFile) {
+          const basename = lastProgressFile.split('/').pop()
+          await clearStalledCacheEntries(basename)
+        }
+
+        self.postMessage({
+          type: 'load:progress',
+          data: { file: '__retry__', status: 'retry', attempt, maxRetries: MAX_RETRIES },
+        })
+        continue
+      }
+      throw err
+    }
+  }
 
   self.postMessage({
     type: 'load:complete',

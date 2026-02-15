@@ -170,7 +170,7 @@ export default function PlaygroundPage() {
     <div className="flex flex-col h-full">
       <ModeHeader
         title="Playground"
-        description="Explore the full power of Chatterbox TTS"
+        description="Explore the full power of VectorSpeech"
       />
 
       <div className="flex-1 overflow-y-auto">

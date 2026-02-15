@@ -17,9 +17,8 @@ export default function Sidebar() {
       <div className="p-5 border-b border-zinc-800">
         <h1 className="text-lg font-bold tracking-tight">
           <span className="text-gradient bg-gradient-to-r from-violet-400 to-pink-400">
-            Chatterbox
+            VectorSpeech
           </span>
-          <span className="text-zinc-400 font-normal ml-1.5 text-sm">TTS</span>
         </h1>
         <p className="text-[11px] text-zinc-500 mt-1">100% in-browser voice synthesis</p>
       </div>

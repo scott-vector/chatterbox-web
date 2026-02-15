@@ -65,6 +65,7 @@ export default function ModelLoader({ compact = false }) {
     const dataFiles = loadProgress.filter((p) => p.file && p.file.endsWith('.onnx_data'))
 
     // Build a map of session -> aggregate progress
+    const isFileDone = (s) => s.status !== 'progress' && s.status !== 'initiate' && s.status !== 'download'
     const sessions = new Map()
     for (const f of [...onnxFiles, ...dataFiles]) {
       const label = getFileLabel(f.file)
@@ -74,7 +75,7 @@ export default function ModelLoader({ compact = false }) {
         sessions.set(label, { ...f, label, size: f.total || 0 })
       } else {
         // Merge: if either part is still loading, the session is loading
-        if (f.status !== 'done') {
+        if (!isFileDone(f)) {
           existing.status = f.status
           existing.progress = f.progress
         }
@@ -83,7 +84,7 @@ export default function ModelLoader({ compact = false }) {
     }
 
     const sessionList = [...sessions.values()]
-    const allDownloaded = sessionList.length > 0 && sessionList.every((s) => s.status === 'done')
+    const allDownloaded = sessionList.length > 0 && sessionList.every((s) => isFileDone(s))
 
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 space-y-3">
@@ -99,7 +100,7 @@ export default function ModelLoader({ compact = false }) {
             <div className="flex justify-between text-xs text-zinc-500">
               <span>{s.label}</span>
               <span>
-                {s.status === 'done'
+                {isFileDone(s)
                   ? formatBytes(s.size) || 'Done'
                   : s.progress != null
                     ? `${Math.round(s.progress)}%`
@@ -109,9 +110,9 @@ export default function ModelLoader({ compact = false }) {
             <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
-                  s.status === 'done' ? 'bg-green-500' : 'bg-violet-500 animate-progress-pulse'
+                  isFileDone(s) ? 'bg-green-500' : 'bg-violet-500 animate-progress-pulse'
                 }`}
-                style={{ width: `${s.status === 'done' ? 100 : s.progress || 0}%` }}
+                style={{ width: `${isFileDone(s) ? 100 : s.progress || 0}%` }}
               />
             </div>
           </div>
@@ -130,7 +131,7 @@ export default function ModelLoader({ compact = false }) {
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
       <p className="text-sm text-zinc-400 mb-4">
-        Load the Chatterbox TTS model to get started (~1.5 GB download, cached after first load)
+        Load the VectorSpeech model to get started (~1.5 GB download, cached after first load)
       </p>
       <button
         onClick={() => loadModel()}

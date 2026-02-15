@@ -23,7 +23,7 @@ export const useAppStore = create((set, get) => ({
 
   // Playground state
   playground: {
-    text: 'Hello! Welcome to Chatterbox. [laugh] This is pretty cool, right?',
+    text: 'Hello! Welcome to VectorSpeech. [laugh] This is pretty cool, right?',
     exaggeration: 0.5,
     voiceAudio: null,
     generatedAudio: null,

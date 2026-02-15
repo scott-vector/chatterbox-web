@@ -8,14 +8,14 @@ export default function AudioPlayer({
   onTimeChange,
   onDurationChange,
 }) {
-  const { playing, currentTime, duration, loadAudio, togglePlay, seek } = useAudioPlayer()
+  const { playing, currentTime, duration, loadAudio, play, pause, togglePlay, seek } = useAudioPlayer()
 
   useEffect(() => {
     if (audioData) {
       loadAudio(audioData, sampleRate)
-      if (autoPlay) togglePlay()
+      if (autoPlay) play()
     }
-  }, [audioData, autoPlay, loadAudio, sampleRate, togglePlay])
+  }, [audioData, autoPlay, loadAudio, play, sampleRate])
 
   useEffect(() => {
     onTimeChange?.(currentTime)

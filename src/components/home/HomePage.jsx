@@ -7,7 +7,7 @@ const modes = [
   {
     to: '/playground',
     title: 'Playground',
-    description: 'Explore all Chatterbox features. Record your voice, adjust expressiveness, and generate speech.',
+    description: 'Explore all VectorSpeech features. Record your voice, adjust expressiveness, and generate speech.',
     gradient: 'from-violet-600 to-purple-600',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-8 h-8">
@@ -78,7 +78,7 @@ export default function HomePage() {
       >
         <h1 className="text-4xl font-bold mb-3">
           <span className="text-gradient bg-gradient-to-r from-violet-400 via-pink-400 to-amber-400">
-            Chatterbox TTS
+            VectorSpeech
           </span>
         </h1>
         <p className="text-zinc-400 text-lg max-w-xl mx-auto">
