@@ -20,9 +20,6 @@ export function useTTS() {
   useEffect(() => {
     const unsubProgress = ttsClient.onProgress((p) => {
       if (!p.file) return
-      if (p.status !== 'progress' || !p.progress || Math.round(p.progress) % 10 === 0) {
-        console.log('[model-progress]', p.file, p.status, p.progress != null ? `${Math.round(p.progress)}%` : '')
-      }
       progressRef.current = [...progressRef.current.filter(
         (x) => x.file !== p.file
       ), p]

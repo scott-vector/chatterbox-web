@@ -4,10 +4,102 @@ let progressListeners = new Set()
 let resetListeners = new Set()
 let modelLoaded = false
 
+// --- Stall watchdog ---
+// Runs on the MAIN THREAD where setInterval always works (unlike the worker
+// where reader.read() can block the event loop). If no progress message
+// arrives for STALL_TIMEOUT_MS, we kill the worker and retry.
+const STALL_TIMEOUT_MS = 20_000  // 20s with no progress = stalled
+const MAX_LOAD_RETRIES = 3
+let stallTimer = null
+let lastProgressTime = 0
+let loadRetryCount = 0
+let currentLoadOptions = null
+let currentLoadCallbacks = null
+
+function startStallWatchdog() {
+  stopStallWatchdog()
+  lastProgressTime = Date.now()
+  stallTimer = setInterval(() => {
+    if (!currentLoadCallbacks) {
+      stopStallWatchdog()
+      return
+    }
+    const elapsed = Date.now() - lastProgressTime
+    if (elapsed > STALL_TIMEOUT_MS) {
+      console.warn(`[tts-client] Download stalled (${(elapsed / 1000).toFixed(0)}s no progress), retrying…`)
+      handleStall()
+    }
+  }, 3_000)
+}
+
+function stopStallWatchdog() {
+  if (stallTimer) {
+    clearInterval(stallTimer)
+    stallTimer = null
+  }
+}
+
+async function purgeTransformersCache() {
+  try {
+    const names = await caches.keys()
+    for (const name of names) {
+      if (name.includes('transformers')) {
+        console.log(`[tts-client] Purging stale cache: ${name}`)
+        await caches.delete(name)
+      }
+    }
+  } catch (e) {
+    console.warn('[tts-client] Cache purge failed:', e.message)
+  }
+}
+
+async function handleStall() {
+  stopStallWatchdog()
+  loadRetryCount++
+
+  // Kill the stuck worker
+  if (worker) {
+    worker.terminate()
+    worker = null
+    listeners.clear()
+  }
+
+  if (loadRetryCount > MAX_LOAD_RETRIES) {
+    const cbs = currentLoadCallbacks
+    currentLoadCallbacks = null
+    currentLoadOptions = null
+    if (cbs) cbs.reject(new Error(`Model download stalled ${MAX_LOAD_RETRIES} times. Check your network connection.`))
+    return
+  }
+
+  console.log(`[tts-client] Retry ${loadRetryCount}/${MAX_LOAD_RETRIES} — purging cache and restarting worker…`)
+
+  // Purge cache so the stalled partial download isn't served from cache
+  await purgeTransformersCache()
+
+  // Notify UI to reset progress bars
+  resetListeners.forEach((fn) => fn())
+
+  // Restart the load in a new worker
+  try {
+    const result = await sendLoad(currentLoadOptions)
+    modelLoaded = true
+    const cbs = currentLoadCallbacks
+    currentLoadCallbacks = null
+    currentLoadOptions = null
+    if (cbs) cbs.resolve(result)
+  } catch (err) {
+    const cbs = currentLoadCallbacks
+    currentLoadCallbacks = null
+    currentLoadOptions = null
+    if (cbs) cbs.reject(err)
+  }
+}
+
+// --- Worker management ---
+
 function getWorker() {
   if (!worker) {
-    // If we're creating a new worker but the store thought the model was ready,
-    // that means HMR or a crash recreated the worker. Notify listeners to reset.
     if (modelLoaded) {
       modelLoaded = false
       resetListeners.forEach((fn) => fn())
@@ -18,6 +110,16 @@ function getWorker() {
       const { type, data } = e.data
 
       if (type === 'load:progress') {
+        // Reset the stall watchdog on every progress message
+        lastProgressTime = Date.now()
+
+        // Once a file download finishes, stop the watchdog — ONNX compilation
+        // can take minutes with no progress events and that's normal.
+        if (data.status === 'done' && data.file) {
+          console.log(`[tts-client] ${data.file} download complete, pausing watchdog for compilation`)
+          stopStallWatchdog()
+        }
+
         progressListeners.forEach((fn) => fn(data))
         return
       }
@@ -56,6 +158,11 @@ function send(type, data, transferable = []) {
   })
 }
 
+// Internal send for load — used by both the public API and the retry logic
+function sendLoad(options = {}) {
+  return send('load', options)
+}
+
 export const ttsClient = {
   get isModelLoaded() {
     return modelLoaded
@@ -66,9 +173,35 @@ export const ttsClient = {
   },
 
   async load(options = {}) {
-    const result = await send('load', options)
-    modelLoaded = true
-    return result
+    loadRetryCount = 0
+    currentLoadOptions = options
+
+    return new Promise((resolve, reject) => {
+      currentLoadCallbacks = { resolve, reject }
+
+      // Start the stall watchdog BEFORE sending
+      startStallWatchdog()
+
+      sendLoad(options)
+        .then((result) => {
+          stopStallWatchdog()
+          modelLoaded = true
+          // Only resolve if the watchdog hasn't already taken over
+          if (currentLoadCallbacks) {
+            currentLoadCallbacks = null
+            currentLoadOptions = null
+            resolve(result)
+          }
+        })
+        .catch((err) => {
+          stopStallWatchdog()
+          if (currentLoadCallbacks) {
+            currentLoadCallbacks = null
+            currentLoadOptions = null
+            reject(err)
+          }
+        })
+    })
   },
 
   encodeSpeaker(id, audioData) {
@@ -94,6 +227,7 @@ export const ttsClient = {
   },
 
   terminate() {
+    stopStallWatchdog()
     if (worker) {
       worker.terminate()
       worker = null

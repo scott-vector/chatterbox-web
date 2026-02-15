@@ -7,10 +7,9 @@ const modes = [
   {
     to: '/playground',
     title: 'Playground',
-    description: 'Explore all VectorSpeech features. Record your voice, adjust expressiveness, and generate speech.',
-    gradient: 'from-violet-600 to-purple-600',
+    description: 'Generate speech, adjust expressiveness, and test voices.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-8 h-8">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
         <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
@@ -20,10 +19,9 @@ const modes = [
   {
     to: '/echo',
     title: 'Echo',
-    description: 'Create personalized voice message cards for birthdays, holidays, and more.',
-    gradient: 'from-pink-600 to-rose-600',
+    description: 'Create personalized voice message cards.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-8 h-8">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
@@ -31,10 +29,9 @@ const modes = [
   {
     to: '/voicecraft',
     title: 'VoiceCraft',
-    description: 'Build multi-character dialogues with different voices and export as audio.',
-    gradient: 'from-cyan-600 to-blue-600',
+    description: 'Build multi-character dialogues with unique voices.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-8 h-8">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -45,10 +42,9 @@ const modes = [
   {
     to: '/narrator',
     title: 'Narrator',
-    description: 'Turn stories into narrated audiobooks with character voices and read-along.',
-    gradient: 'from-amber-600 to-orange-600',
+    description: 'Turn stories into narrated audiobooks.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-8 h-8">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
@@ -58,44 +54,34 @@ const modes = [
 
 const container = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.08 } },
+  show: { transition: { staggerChildren: 0.06 } },
 }
 
 const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
 }
 
 export default function HomePage() {
   const { isReady } = useModelStatus()
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-12">
+    <div className="max-w-4xl mx-auto px-6 py-12">
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="mb-10"
       >
-        <h1 className="text-4xl font-bold mb-3">
-          <span className="text-gradient bg-gradient-to-r from-violet-400 via-pink-400 to-amber-400">
-            VectorSpeech
-          </span>
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-100 mb-1">
+          Welcome back
         </h1>
-        <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-          100% in-browser text-to-speech with zero-shot voice cloning and expressiveness control.
-          Powered by{' '}
-          <a
-            href="https://github.com/huggingface/transformers.js"
-            target="_blank"
-            rel="noopener"
-            className="text-violet-400 hover:text-violet-300"
-          >
-            Transformers.js
-          </a>
+        <p className="text-sm text-zinc-500">
+          Select a tool to get started, or load the speech engine below.
         </p>
       </motion.div>
 
-      <div className="max-w-lg mx-auto mb-12">
+      <div className="max-w-lg mb-10">
         <ModelLoader />
       </div>
 
@@ -103,23 +89,23 @@ export default function HomePage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
       >
         {modes.map((mode) => (
           <motion.div key={mode.to} variants={item}>
             <Link
               to={mode.to}
-              className={`block p-6 rounded-xl border border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 transition-all group ${
-                !isReady ? 'opacity-50 pointer-events-none' : ''
+              className={`group flex items-start gap-4 p-4 rounded-lg border border-zinc-800/60 bg-zinc-900/30 hover:bg-zinc-800/40 hover:border-zinc-700/60 transition-all ${
+                !isReady ? 'opacity-40 pointer-events-none' : ''
               }`}
             >
-              <div
-                className={`w-14 h-14 rounded-xl bg-gradient-to-br ${mode.gradient} flex items-center justify-center mb-4 text-white group-hover:scale-105 transition-transform`}
-              >
+              <div className="w-9 h-9 rounded-md bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors shrink-0 mt-0.5">
                 {mode.icon}
               </div>
-              <h3 className="text-lg font-semibold mb-1">{mode.title}</h3>
-              <p className="text-sm text-zinc-400">{mode.description}</p>
+              <div className="min-w-0">
+                <h3 className="text-[13px] font-semibold text-zinc-200 mb-0.5">{mode.title}</h3>
+                <p className="text-[12px] text-zinc-500 leading-relaxed">{mode.description}</p>
+              </div>
             </Link>
           </motion.div>
         ))}

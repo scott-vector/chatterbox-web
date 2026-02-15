@@ -388,10 +388,7 @@ export default function VoiceCraftPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <ModeHeader
-        title="VoiceCraft"
-        description="Create multi-character dialogues with unique voices"
-      >
+      <ModeHeader title="VoiceCraft">
         <ModelLoader compact />
       </ModeHeader>
 

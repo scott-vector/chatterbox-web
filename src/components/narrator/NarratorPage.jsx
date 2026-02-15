@@ -577,10 +577,7 @@ export default function NarratorPage() {
   // ---- Render ----
   return (
     <div className="min-h-screen">
-      <ModeHeader
-        title="Narrator"
-        description="Turn stories into narrated audiobooks with character voices"
-      />
+      <ModeHeader title="Narrator" />
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
         {/* Model loader */}

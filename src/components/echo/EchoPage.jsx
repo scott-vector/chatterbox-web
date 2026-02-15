@@ -111,10 +111,7 @@ export default function EchoPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <ModeHeader
-        title="Echo"
-        description="Create personalized voice message cards"
-      >
+      <ModeHeader title="Echo">
         <ModelLoader compact />
       </ModeHeader>
 
