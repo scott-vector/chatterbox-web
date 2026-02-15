@@ -6,6 +6,84 @@ let model = null
 let processor = null
 const speakerCache = new Map()
 
+// ---------------------------------------------------------------------------
+// Stall-resilient fetch: wraps the body stream with a per-chunk read timeout.
+// If no data arrives for STALL_MS, the connection is aborted so the caller
+// (transformers.js from_pretrained) surfaces an error we can retry on.
+// ---------------------------------------------------------------------------
+const STALL_MS = 15_000
+const MAX_RETRIES = 3
+const _origFetch = self.fetch.bind(self)
+
+self.fetch = async function stallGuardFetch(input, init = {}) {
+  const url = typeof input === 'string' ? input : input?.url || ''
+  const isOnnx = url.includes('.onnx')
+
+  if (!isOnnx) return _origFetch(input, init)
+
+  const filename = url.split('/').pop()
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const resp = await _origFetch(input, init)
+      if (!resp.ok || !resp.body) return resp
+
+      // Wrap the body with stall detection
+      const reader = resp.body.getReader()
+      const stream = new ReadableStream({
+        async pull(controller) {
+          const timeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('STALL')), STALL_MS),
+          )
+          try {
+            const { done, value } = await Promise.race([reader.read(), timeout])
+            if (done) { controller.close(); return }
+            controller.enqueue(value)
+          } catch {
+            reader.cancel().catch(() => {})
+            controller.error(new Error('STALL'))
+          }
+        },
+      })
+
+      return new Response(stream, {
+        headers: resp.headers,
+        status: resp.status,
+        statusText: resp.statusText,
+      })
+    } catch (err) {
+      const isStall = err?.message === 'STALL' || err?.name === 'AbortError'
+      if (attempt < MAX_RETRIES && isStall) {
+        console.warn(`[tts.worker] Download stalled on ${filename}, clearing cache & retrying (${attempt}/${MAX_RETRIES})…`)
+        await clearCacheFor(filename)
+        continue
+      }
+      throw err
+    }
+  }
+
+  // Fallback (shouldn't reach here)
+  return _origFetch(input, init)
+}
+
+async function clearCacheFor(fileHint) {
+  try {
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name)
+      for (const req of await cache.keys()) {
+        if (req.url.includes(fileHint)) {
+          console.log(`[tts.worker] Cleared cache: ${req.url}`)
+          await cache.delete(req)
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[tts.worker] Cache clear failed:', e.message)
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 async function checkWebGPU() {
   if (!navigator.gpu) return { available: false, reason: 'WebGPU not supported' }
   try {
@@ -34,27 +112,6 @@ const DTYPE_CONFIGS = {
   },
 }
 
-async function clearStalledCacheEntries(fileHint) {
-  try {
-    const cacheNames = await caches.keys()
-    for (const name of cacheNames) {
-      const cache = await caches.open(name)
-      const requests = await cache.keys()
-      for (const req of requests) {
-        if (req.url.includes(fileHint)) {
-          console.log(`[tts.worker] Clearing cached entry: ${req.url}`)
-          await cache.delete(req)
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[tts.worker] Could not clear cache:', e.message)
-  }
-}
-
-const STALL_TIMEOUT_MS = 15_000
-const MAX_RETRIES = 3
-
 async function load(data) {
   const { device } = data
   const webgpu = await checkWebGPU()
@@ -63,65 +120,13 @@ async function load(data) {
 
   processor = await AutoProcessor.from_pretrained(MODEL_ID)
 
-  let lastProgressTime = Date.now()
-  let lastProgressFile = ''
-  let stallTimer = null
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    lastProgressTime = Date.now()
-    lastProgressFile = ''
-
-    try {
-      model = await new Promise((resolve, reject) => {
-        let settled = false
-        const settle = (fn, val) => { if (!settled) { settled = true; clearTimeout(stallTimer); fn(val) } }
-
-        const checkStall = () => {
-          if (Date.now() - lastProgressTime > STALL_TIMEOUT_MS) {
-            settle(reject, new Error(`Download stalled on ${lastProgressFile}`))
-          } else {
-            stallTimer = setTimeout(checkStall, 5000)
-          }
-        }
-        stallTimer = setTimeout(checkStall, STALL_TIMEOUT_MS)
-
-        ChatterboxModel.from_pretrained(MODEL_ID, {
-          device: useDevice,
-          dtype: useDtype,
-          progress_callback: (progress) => {
-            if (progress.status === 'progress') {
-              lastProgressTime = Date.now()
-              lastProgressFile = progress.file || ''
-            }
-            self.postMessage({ type: 'load:progress', data: progress })
-          },
-        }).then((m) => settle(resolve, m))
-          .catch((err) => settle(reject, err))
-      })
-
-      // Success
-      break
-    } catch (err) {
-      clearTimeout(stallTimer)
-      const isStall = err.message.startsWith('Download stalled')
-      if (attempt < MAX_RETRIES && isStall) {
-        console.warn(`[tts.worker] ${err.message} — retrying (${attempt}/${MAX_RETRIES})...`)
-
-        // Clear cached partial download for the stalled file
-        if (lastProgressFile) {
-          const basename = lastProgressFile.split('/').pop()
-          await clearStalledCacheEntries(basename)
-        }
-
-        self.postMessage({
-          type: 'load:progress',
-          data: { file: '__retry__', status: 'retry', attempt, maxRetries: MAX_RETRIES },
-        })
-        continue
-      }
-      throw err
-    }
-  }
+  model = await ChatterboxModel.from_pretrained(MODEL_ID, {
+    device: useDevice,
+    dtype: useDtype,
+    progress_callback: (progress) => {
+      self.postMessage({ type: 'load:progress', data: progress })
+    },
+  })
 
   self.postMessage({
     type: 'load:complete',
