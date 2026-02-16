@@ -38,6 +38,7 @@ export default function PlaygroundPage() {
   const [activeQueueTranscriptId, setActiveQueueTranscriptId] = useState(null)
   const [activeModalJob, setActiveModalJob] = useState(null)
   const [modalInitialTime, setModalInitialTime] = useState(0)
+  const [activeTab, setActiveTab] = useState('single')
 
   const {
     voices,
@@ -149,7 +150,8 @@ export default function PlaygroundPage() {
       ? (playground.inferenceTime / 1000) / audioDuration
       : null
 
-  const canGenerate = !!(playground.voiceAudio && playground.text.trim() && activeSpeakerId)
+  const hasVoice = !!(playground.voiceAudio && activeSpeakerId)
+  const canGenerate = !!(hasVoice && playground.text.trim())
   const activeQueueJob = queue.jobs.find((job) => job.id === activeQueueTranscriptId) ?? null
   const openTranscriptModal = useCallback((job, startTime = 0) => {
     setActiveQueueTranscriptId(job.id)
@@ -175,185 +177,227 @@ export default function PlaygroundPage() {
           {isReady && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-6">
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-zinc-300">
-                    Text to Speak
-                  </label>
-                  <textarea
-                    value={playground.text}
-                    onChange={(e) => setPlayground({ text: e.target.value })}
-                    placeholder="Type or paste the text you want to convert to speech..."
-                    rows={6}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none resize-y"
-                  />
-                </div>
-
-                <ExaggerationSlider
-                  value={playground.exaggeration}
-                  onChange={(val) => setPlayground({ exaggeration: val })}
-                />
-
-                <GenerateButton
-                  onClick={handleGenerate}
-                  disabled={!canGenerate}
-                  generating={playground.generating || encodingVoice}
-                  label={generateLabel}
-                />
-                {playground.generating && (
-                  <ChunkProgressBar
-                    current={chunkProgress.current}
-                    total={chunkProgress.total}
-                  />
+                {!hasVoice && (
+                  <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-amber-400 shrink-0">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <p className="text-sm text-amber-400/90">
+                      Record a reference voice or select one from Saved Voice Library to get started.
+                    </p>
+                  </div>
                 )}
 
-                <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-zinc-200">Batch Queue</h3>
-                    <span className="text-xs text-zinc-500">
-                      {queue.counts.done}/{queue.counts.total} done
-                    </span>
-                  </div>
-
-                  <textarea
-                    value={queueInput}
-                    onChange={(e) => setQueueInput(e.target.value)}
-                    rows={4}
-                    placeholder="Paste multiple jobs separated by blank lines"
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200"
-                  />
-                  <div className="flex flex-wrap gap-2">
+                {/* Tab switcher */}
+                <div className="flex border-b border-zinc-700/50">
+                  {[
+                    { id: 'single', label: 'Single' },
+                    { id: 'batch', label: 'Batch' },
+                  ].map((tab) => (
                     <button
+                      key={tab.id}
                       type="button"
-                      onClick={() => {
-                        queue.addBatchText(queueInput)
-                        setQueueInput('')
-                      }}
-                      className="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+                        activeTab === tab.id
+                          ? 'text-zinc-100'
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
                     >
-                      Add batch text
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => queue.addTexts([playground.text])}
-                      className="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
-                    >
-                      Queue current text
-                    </button>
-                    <label className="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700 cursor-pointer">
-                      Upload .txt files
-                      <input type="file" accept=".txt,text/plain" multiple className="hidden" onChange={handleQueueFiles} />
-                    </label>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={handleStartQueue}
-                      disabled={queue.running || !canGenerate || queue.counts.queued === 0}
-                      className="px-3 py-1.5 text-xs rounded-md bg-violet-600 text-white disabled:opacity-50"
-                    >
-                      {queue.running ? 'Processing...' : 'Start queue'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={queue.stop}
-                      disabled={!queue.running}
-                      className="px-3 py-1.5 text-xs rounded-md bg-zinc-700 text-zinc-100 disabled:opacity-50"
-                    >
-                      Stop
-                    </button>
-                    <button
-                      type="button"
-                      onClick={queue.clearFinished}
-                      className="px-3 py-1.5 text-xs rounded-md bg-zinc-700 text-zinc-100"
-                    >
-                      Clear finished
-                    </button>
-                  </div>
-
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                      {queue.jobs.length === 0 && (
-                        <p className="text-xs text-zinc-500">No jobs queued yet.</p>
+                      {tab.label}
+                      {activeTab === tab.id && (
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
                       )}
-                      {queue.jobs.map((job) => (
-                        <div key={job.id} className="rounded border border-zinc-800 bg-zinc-950/70 p-2 text-xs">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-zinc-200 truncate">{job.title}</p>
-                            <span className="text-zinc-500 uppercase">{job.status}</span>
-                          </div>
-                          {job.error && <p className="text-red-400 mt-1">{job.error}</p>}
-                          {job.output?.url && (
-                            <div className="mt-2 space-y-2">
-                              <audio
-                                controls
-                                preload="none"
-                                src={job.output.url}
-                                className="w-full h-8"
-                                onPlay={(e) => {
-                                  const el = e.currentTarget
-                                  el.pause()
-                                  openTranscriptModal(job, el.currentTime)
-                                }}
-                                onTimeUpdate={(e) => {
-                                  const el = e.currentTarget
-                                  setActiveQueueTranscriptId(job.id)
-                                  setJobPlayback((prev) => ({
-                                    ...prev,
-                                    [job.id]: {
-                                      ...prev[job.id],
-                                      currentTime: el.currentTime,
-                                      duration: Number.isFinite(el.duration) ? el.duration : prev[job.id]?.duration || 0,
-                                    },
-                                  }))
-                                }}
-                                onLoadedMetadata={(e) => {
-                                  const el = e.currentTarget
-                                  setJobPlayback((prev) => ({
-                                    ...prev,
-                                    [job.id]: {
-                                      ...prev[job.id],
-                                      duration: Number.isFinite(el.duration) ? el.duration : 0,
-                                    },
-                                  }))
-                                }}
-                              />
-                              <div className="flex items-center justify-between">
-                                <button
-                                  type="button"
-                                  onClick={() => openTranscriptModal(job, jobPlayback[job.id]?.currentTime ?? 0)}
-                                  className={`text-[11px] px-2 py-1 rounded ${activeQueueTranscriptId === job.id ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
-                                >
-                                  {activeQueueTranscriptId === job.id ? 'Open transcript player' : 'View transcript'}
-                                </button>
-                                <a href={job.output.url} download={`${job.title.replace(/\.[^/.]+$/, '')}.wav`} className="text-violet-400 hover:text-violet-300 inline-block">
-                                  Download WAV
-                                </a>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3 min-h-48">
-                      {activeQueueJob?.output?.url ? (
-                        <WordLevelTranscript
-                          title={`Current transcript: ${activeQueueJob.title}`}
-                          text={activeQueueJob.text}
-                          wordTimestamps={activeQueueJob.output.wordTimestamps}
-                          currentTime={jobPlayback[activeQueueJob.id]?.currentTime ?? 0}
-                          duration={jobPlayback[activeQueueJob.id]?.duration ?? 0}
-                          maxHeightClass="max-h-60"
-                        />
-                      ) : (
-                        <p className="text-xs text-zinc-500">
-                          Select a finished job (or press play) to view a synchronized transcript panel.
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                    </button>
+                  ))}
                 </div>
+
+                {/* Single tab */}
+                {activeTab === 'single' && (
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium text-zinc-300">
+                        Text to Speak
+                      </label>
+                      <textarea
+                        value={playground.text}
+                        onChange={(e) => setPlayground({ text: e.target.value })}
+                        placeholder="Type or paste the text you want to convert to speech..."
+                        rows={6}
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                      />
+                    </div>
+
+                    <GenerateButton
+                      onClick={handleGenerate}
+                      disabled={!canGenerate}
+                      generating={playground.generating || encodingVoice}
+                      label={generateLabel}
+                    />
+                    {playground.generating && (
+                      <ChunkProgressBar
+                        current={chunkProgress.current}
+                        total={chunkProgress.total}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Batch tab */}
+                {activeTab === 'batch' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-zinc-300">Batch Queue</span>
+                      <span className="text-xs text-zinc-500">
+                        {queue.counts.done}/{queue.counts.total} done
+                      </span>
+                    </div>
+
+                    <textarea
+                      value={queueInput}
+                      onChange={(e) => setQueueInput(e.target.value)}
+                      rows={4}
+                      placeholder="Paste multiple jobs separated by blank lines"
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={!queueInput.trim()}
+                        onClick={() => {
+                          queue.addBatchText(queueInput)
+                          setQueueInput('')
+                        }}
+                        className="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      >
+                        Add batch text
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!queueInput.trim() && !playground.text.trim()}
+                        onClick={() => queue.addTexts([queueInput.trim() ? queueInput : playground.text])}
+                        className="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      >
+                        Queue current text
+                      </button>
+                      <label className={`px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-200 transition-colors ${queueInput.trim() ? 'opacity-40 pointer-events-none' : 'hover:bg-zinc-700 cursor-pointer'}`}>
+                        Upload .txt files
+                        <input type="file" accept=".txt,text/plain" multiple className="hidden" onChange={handleQueueFiles} disabled={!!queueInput.trim()} />
+                      </label>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleStartQueue}
+                        disabled={queue.running || !canGenerate || queue.counts.queued === 0}
+                        className="px-3 py-1.5 text-xs rounded-md bg-indigo-600 text-white disabled:opacity-50 transition-colors"
+                      >
+                        {queue.running ? 'Processing...' : 'Start queue'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={queue.stop}
+                        disabled={!queue.running}
+                        className="px-3 py-1.5 text-xs rounded-md bg-zinc-700 text-zinc-100 disabled:opacity-50 transition-colors"
+                      >
+                        Stop
+                      </button>
+                      <button
+                        type="button"
+                        onClick={queue.clearFinished}
+                        className="px-3 py-1.5 text-xs rounded-md bg-zinc-700 text-zinc-100 transition-colors"
+                      >
+                        Clear finished
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                        {queue.jobs.length === 0 && (
+                          <p className="text-xs text-zinc-500">No jobs queued yet.</p>
+                        )}
+                        {queue.jobs.map((job) => (
+                          <div key={job.id} className="rounded-md border border-zinc-700/50 bg-zinc-800/40 p-2 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-zinc-200 truncate">{job.title}</p>
+                              <span className="text-zinc-500 uppercase">{job.status}</span>
+                            </div>
+                            {job.error && <p className="text-red-400 mt-1">{job.error}</p>}
+                            {job.output?.url && (
+                              <div className="mt-2 space-y-2">
+                                <audio
+                                  controls
+                                  preload="none"
+                                  src={job.output.url}
+                                  className="w-full h-8"
+                                  onPlay={(e) => {
+                                    const el = e.currentTarget
+                                    el.pause()
+                                    openTranscriptModal(job, el.currentTime)
+                                  }}
+                                  onTimeUpdate={(e) => {
+                                    const el = e.currentTarget
+                                    setActiveQueueTranscriptId(job.id)
+                                    setJobPlayback((prev) => ({
+                                      ...prev,
+                                      [job.id]: {
+                                        ...prev[job.id],
+                                        currentTime: el.currentTime,
+                                        duration: Number.isFinite(el.duration) ? el.duration : prev[job.id]?.duration || 0,
+                                      },
+                                    }))
+                                  }}
+                                  onLoadedMetadata={(e) => {
+                                    const el = e.currentTarget
+                                    setJobPlayback((prev) => ({
+                                      ...prev,
+                                      [job.id]: {
+                                        ...prev[job.id],
+                                        duration: Number.isFinite(el.duration) ? el.duration : 0,
+                                      },
+                                    }))
+                                  }}
+                                />
+                                <div className="flex items-center justify-between">
+                                  <button
+                                    type="button"
+                                    onClick={() => openTranscriptModal(job, jobPlayback[job.id]?.currentTime ?? 0)}
+                                    className={`text-[11px] px-2 py-1 rounded ${activeQueueTranscriptId === job.id ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
+                                  >
+                                    {activeQueueTranscriptId === job.id ? 'Open transcript player' : 'View transcript'}
+                                  </button>
+                                  <a href={job.output.url} download={`${job.title.replace(/\.[^/.]+$/, '')}.wav`} className="text-indigo-400 hover:text-indigo-300 inline-block text-xs">
+                                    Download WAV
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 min-h-48">
+                        {activeQueueJob?.output?.url ? (
+                          <WordLevelTranscript
+                            title={`Current transcript: ${activeQueueJob.title}`}
+                            text={activeQueueJob.text}
+                            wordTimestamps={activeQueueJob.output.wordTimestamps}
+                            currentTime={jobPlayback[activeQueueJob.id]?.currentTime ?? 0}
+                            duration={jobPlayback[activeQueueJob.id]?.duration ?? 0}
+                            maxHeightClass="max-h-60"
+                          />
+                        ) : (
+                          <p className="text-xs text-zinc-500">
+                            Select a finished job (or press play) to view a synchronized transcript panel.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-6">
@@ -375,7 +419,7 @@ export default function PlaygroundPage() {
                       type="button"
                       onClick={handleSaveVoice}
                       disabled={!playground.voiceAudio || !voiceName.trim()}
-                      className="px-3 py-2 text-xs rounded-md bg-violet-600 text-white disabled:opacity-50"
+                      className="px-3 py-2 text-xs rounded-md bg-indigo-600 text-white disabled:opacity-50"
                     >
                       Save
                     </button>
@@ -397,7 +441,7 @@ export default function PlaygroundPage() {
                               <button
                                 type="button"
                                 onClick={() => handleUseSavedVoice(voice.id)}
-                                className={`px-2 py-1 text-[11px] rounded ${isActive ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}
+                                className={`px-2 py-1 text-[11px] rounded ${isActive ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}
                               >
                                 {isActive ? 'Using' : 'Use'}
                               </button>
@@ -431,6 +475,11 @@ export default function PlaygroundPage() {
                     })}
                   </div>
                 </div>
+
+                <ExaggerationSlider
+                  value={playground.exaggeration}
+                  onChange={(val) => setPlayground({ exaggeration: val })}
+                />
 
                 {playground.generatedAudio && (
                   <div className="space-y-3">
