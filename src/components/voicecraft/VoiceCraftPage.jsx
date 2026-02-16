@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
 import ModeHeader from '../layout/ModeHeader'
-import ModelLoader from '../shared/ModelLoader'
 import VoiceRecorder from '../shared/VoiceRecorder'
 import AudioPlayer from '../shared/AudioPlayer'
 import ExaggerationSlider from '../shared/ExaggerationSlider'
@@ -388,16 +387,9 @@ export default function VoiceCraftPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <ModeHeader title="VoiceCraft">
-        <ModelLoader compact />
-      </ModeHeader>
+      <ModeHeader title="VoiceCraft" />
 
-      <div className="max-w-5xl mx-auto w-full px-6 py-8 space-y-8">
-        {/* Model loader (shown when model not ready) */}
-        {!isReady && (
-          <ModelLoader />
-        )}
-
+      <div className="px-10 py-8 space-y-8">
         {/* ============================================================= */}
         {/* CHARACTER MANAGER                                              */}
         {/* ============================================================= */}

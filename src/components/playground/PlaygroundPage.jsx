@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
 import ModeHeader from '../layout/ModeHeader'
-import ModelLoader from '../shared/ModelLoader'
 import VoiceRecorder from '../shared/VoiceRecorder'
 import AudioPlayer from '../shared/AudioPlayer'
 import ExaggerationSlider from '../shared/ExaggerationSlider'
@@ -171,12 +170,7 @@ export default function PlaygroundPage() {
       <ModeHeader title="Playground" />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-8">
-          {!isReady && (
-            <div className="max-w-lg mx-auto mb-8">
-              <ModelLoader />
-            </div>
-          )}
+        <div className="px-10 py-8">
 
           {isReady && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

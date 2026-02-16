@@ -2,11 +2,11 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
 
 @theme {
-  --color-zinc-925: #1a1a1f;
+  --color-zinc-925: #1e1e23;
   --color-accent: #6366f1;
   --color-accent-hover: #818cf8;
-  --color-surface: #1e1e23;
-  --color-surface-raised: #252529;
+  --color-surface: #232328;
+  --color-surface-raised: #2a2a30;
 }
 
 :root {

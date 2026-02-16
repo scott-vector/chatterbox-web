@@ -1,5 +1,7 @@
+import { useState, useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useModelStatus } from '../../hooks/useModelStatus'
+import logo from '../../assets/logo.png'
 
 const navItems = [
   { to: '/', label: 'Home', icon: HomeIcon },
@@ -10,26 +12,26 @@ const navItems = [
 ]
 
 export default function Sidebar() {
-  const { isReady, isLoading } = useModelStatus()
+  const { isReady, isLoading, loadProgress } = useModelStatus()
+
+  // Determine if we're in compile phase (downloads done, not yet ready)
+  const isCompiling = isLoading && (() => {
+    const isFileDone = (s) => s.status !== 'progress' && s.status !== 'initiate' && s.status !== 'download'
+    const onnx = loadProgress.filter((p) => p.file && p.file.endsWith('.onnx'))
+    const data = loadProgress.filter((p) => p.file && p.file.endsWith('.onnx_data'))
+    const all = [...onnx, ...data]
+    return all.length > 0 && all.every((f) => isFileDone(f))
+  })()
 
   return (
-    <aside className="sticky top-0 h-screen w-[var(--sidebar-width)] shrink-0 bg-zinc-925 border-r border-zinc-800/60 flex flex-col z-50">
+    <aside className="sticky top-0 h-screen w-[var(--sidebar-width)] shrink-0 bg-[#1b1b20] border-r border-zinc-600/30 flex flex-col z-50">
       <div className="px-5 py-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 text-white">
-              <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <span className="text-[15px] font-semibold tracking-tight text-zinc-100">
-            VectorSpeech
-          </span>
-        </div>
+        <img src={logo} alt="VectorSpeech" className="h-6" />
       </div>
 
       <nav className="flex-1 px-3 space-y-0.5">
         <div className="px-2 pb-2 pt-1">
-          <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-600">
+          <span className="text-xs font-medium uppercase tracking-widest text-zinc-600">
             Tools
           </span>
         </div>
@@ -39,7 +41,7 @@ export default function Sidebar() {
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
+              `flex items-center gap-2.5 px-3 py-2 rounded-md text-[15px] font-medium transition-colors ${
                 isActive
                   ? 'nav-active bg-zinc-800/70 text-white'
                   : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'
@@ -52,15 +54,21 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-5 py-4 border-t border-zinc-800/60">
+      {isCompiling && (
+        <div className="px-4 pb-3">
+          <CompileIndicator />
+        </div>
+      )}
+
+      <div className="px-5 py-4 border-t border-zinc-700/30">
         <div className="flex items-center gap-2">
           <div
             className={`w-1.5 h-1.5 rounded-full ${
               isReady ? 'bg-emerald-400' : isLoading ? 'bg-amber-400 animate-pulse' : 'bg-zinc-600'
             }`}
           />
-          <span className="text-[11px] text-zinc-500 font-medium">
-            {isReady ? 'Engine Ready' : isLoading ? 'Loading...' : 'Engine Offline'}
+          <span className="text-sm text-zinc-500 font-medium">
+            {isReady ? 'Engine Ready' : isCompiling ? 'Compiling...' : isLoading ? 'Loading...' : 'Engine Offline'}
           </span>
         </div>
       </div>
@@ -112,5 +120,29 @@ function NarratorIcon(props) {
       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
     </svg>
+  )
+}
+
+function CompileIndicator() {
+  const [elapsed, setElapsed] = useState(0)
+  const startRef = useRef(Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <div className="rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-amber-400/80 font-medium">Compiling sessions...</span>
+        <span className="text-zinc-500 tabular-nums">{elapsed}s</span>
+      </div>
+      <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+        <div className="h-full bg-amber-500/50 rounded-full animate-[compile-slide_1.5s_ease-in-out_infinite]" style={{ width: '40%' }} />
+      </div>
+    </div>
   )
 }

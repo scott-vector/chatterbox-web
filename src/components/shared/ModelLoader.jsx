@@ -28,28 +28,15 @@ export default function ModelLoader({ compact = false }) {
   const { isIdle, isLoading, isReady, isError, loadProgress, modelDevice, modelError } = useModelStatus()
   const { loadModel } = useTTS()
 
-  if (isReady && compact) return null
-
-  if (isReady) {
-    return (
-      <div className="rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <span className="text-[13px] font-medium text-emerald-400">Engine Ready</span>
-          <span className="text-[11px] text-zinc-600 ml-auto font-medium">{modelDevice?.toUpperCase()}</span>
-        </div>
-      </div>
-    )
-  }
+  if (isReady) return null
 
   if (isError) {
     return (
-      <div className="rounded-lg border border-red-500/15 bg-red-500/5 px-4 py-3">
-        <p className="text-[13px] text-red-400 font-medium mb-1.5">Failed to load engine</p>
-        <p className="text-[11px] text-zinc-500 mb-3 break-all leading-relaxed">{modelError}</p>
+      <div className="rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2.5">
+        <p className="text-xs text-red-400 font-medium mb-1">Load failed</p>
         <button
           onClick={() => loadModel()}
-          className="px-3 py-1.5 rounded-md bg-red-500/10 text-red-400 text-[12px] font-medium hover:bg-red-500/20 transition-colors"
+          className="px-2.5 py-1 rounded bg-red-500/10 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
         >
           Retry
         </button>
@@ -82,16 +69,16 @@ export default function ModelLoader({ compact = false }) {
     const allDownloaded = sessionList.length > 0 && sessionList.every((s) => isFileDone(s))
 
     return (
-      <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-4 py-4 space-y-3">
+      <div className="rounded-md border border-zinc-600/40 bg-zinc-800/40 px-3 py-3 space-y-2.5">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-          <span className="text-[13px] font-medium text-zinc-300">
-            {allDownloaded ? 'Initializing sessions...' : 'Downloading models...'}
+          <span className="text-xs font-medium text-zinc-300">
+            {allDownloaded ? 'Initializing...' : 'Downloading...'}
           </span>
         </div>
 
         {sessionList.map((s) => (
-          <div key={s.label} className="space-y-1.5">
+          <div key={s.label} className="space-y-1">
             <div className="flex justify-between text-[11px]">
               <span className="text-zinc-500 font-medium">{s.label}</span>
               <span className="text-zinc-600 tabular-nums">
@@ -120,17 +107,12 @@ export default function ModelLoader({ compact = false }) {
 
   // Idle
   return (
-    <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-5 py-5">
-      <p className="text-[13px] text-zinc-500 mb-4">
-        Load the speech engine to begin. Approximately 1.5 GB, cached after first load.
-      </p>
-      <button
-        onClick={() => loadModel()}
-        className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-[13px] font-medium transition-colors"
-      >
-        Load Engine
-      </button>
-    </div>
+    <button
+      onClick={() => loadModel()}
+      className="w-full px-3 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors"
+    >
+      Load Engine
+    </button>
   )
 }
 
@@ -146,9 +128,9 @@ function CompileTimer() {
   }, [])
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <div className="flex items-center justify-between text-[11px] text-zinc-500">
-        <span className="animate-pulse font-medium">Compiling ONNX sessions...</span>
+        <span className="animate-pulse font-medium">Compiling...</span>
         <span className="tabular-nums">{elapsed}s</span>
       </div>
       <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">

@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import ModelLoader from '../shared/ModelLoader'
 import { useModelStatus } from '../../hooks/useModelStatus'
 
 const modes = [
@@ -66,24 +65,20 @@ export default function HomePage() {
   const { isReady } = useModelStatus()
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12">
+    <div className="px-10 py-12">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4 }}
         className="mb-10"
       >
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-100 mb-1">
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-100 mb-1.5">
           Welcome back
         </h1>
-        <p className="text-sm text-zinc-500">
-          Select a tool to get started, or load the speech engine below.
+        <p className="text-base text-zinc-500">
+          Select a tool to get started.
         </p>
       </motion.div>
-
-      <div className="max-w-lg mb-10">
-        <ModelLoader />
-      </div>
 
       <motion.div
         variants={container}
@@ -95,7 +90,7 @@ export default function HomePage() {
           <motion.div key={mode.to} variants={item}>
             <Link
               to={mode.to}
-              className={`group flex items-start gap-4 p-4 rounded-lg border border-zinc-800/60 bg-zinc-900/30 hover:bg-zinc-800/40 hover:border-zinc-700/60 transition-all ${
+              className={`group flex items-start gap-4 p-4 rounded-lg border border-zinc-600/40 bg-zinc-800/40 hover:bg-zinc-700/40 hover:border-zinc-500/50 transition-all ${
                 !isReady ? 'opacity-40 pointer-events-none' : ''
               }`}
             >
@@ -103,8 +98,8 @@ export default function HomePage() {
                 {mode.icon}
               </div>
               <div className="min-w-0">
-                <h3 className="text-[13px] font-semibold text-zinc-200 mb-0.5">{mode.title}</h3>
-                <p className="text-[12px] text-zinc-500 leading-relaxed">{mode.description}</p>
+                <h3 className="text-base font-semibold text-zinc-200 mb-0.5">{mode.title}</h3>
+                <p className="text-sm text-zinc-500 leading-relaxed">{mode.description}</p>
               </div>
             </Link>
           </motion.div>

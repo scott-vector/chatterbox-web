@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import EngineLoadModal from '../shared/EngineLoadModal'
 
 export default function AppShell() {
   return (
@@ -10,6 +11,7 @@ export default function AppShell() {
           <Outlet />
         </main>
       </div>
+      <EngineLoadModal />
     </div>
   )
 }

@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react'
 import ModeHeader from '../layout/ModeHeader'
-import ModelLoader from '../shared/ModelLoader'
 import VoiceRecorder from '../shared/VoiceRecorder'
 import AudioPlayer from '../shared/AudioPlayer'
 import GenerateButton from '../shared/GenerateButton'
@@ -579,10 +578,7 @@ export default function NarratorPage() {
     <div className="min-h-screen">
       <ModeHeader title="Narrator" />
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        {/* Model loader */}
-        <ModelLoader compact />
-
+      <div className="px-10 py-8 space-y-8">
         {/* ===== STEP 1: Story Input ===== */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">

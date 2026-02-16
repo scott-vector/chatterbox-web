@@ -1,7 +1,6 @@
 import { useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ModeHeader from '../layout/ModeHeader'
-import ModelLoader from '../shared/ModelLoader'
 import VoiceRecorder from '../shared/VoiceRecorder'
 import AudioPlayer from '../shared/AudioPlayer'
 import ExaggerationSlider from '../shared/ExaggerationSlider'
@@ -111,12 +110,10 @@ export default function EchoPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <ModeHeader title="Echo">
-        <ModelLoader compact />
-      </ModeHeader>
+      <ModeHeader title="Echo" />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-6 py-8">
+        <div className="px-10 py-8 max-w-5xl">
           {/* Step indicator */}
           <div className="flex items-center justify-center gap-2 mb-10">
             {STEP_LABELS.map((label, i) => {
